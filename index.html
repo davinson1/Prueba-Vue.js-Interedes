@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.5.16/dist/vue.js"></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.min.js" integrity="sha384-+YQ4JLhjyBLPDQt//I+STsc9iw4uQqACwlvpslubQzn4u2UU2UFM80nGisd026JF" crossorigin="anonymous"></script>
+    
+    <title>Prueba Divisas </title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+        integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+</head>
+
+<body>
+<div id="app">
+    
+    <h1 class="text-center mt-5">Aplicacion de divisas</h1>
+
+    <nav >
+        <div class="nav nav-tabs container Regular " id="nav-tab" role="tablist">
+          <a class="nav-link active" id="nav-home-tab" data-toggle="tab" href="#nav-home" role="tab" aria-controls="nav-home" aria-selected="true">Conversion</a>
+          <a class="nav-link" id="nav-profile-tab" data-toggle="tab" href="#nav-profile" role="tab" aria-controls="nav-profile" aria-selected="false">Historial</a>
+        </div>
+      </nav>
+
+      <div class="tab-content shadow container" id="nav-tabContent">
+        <div class="tab-pane fade show active container" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab">
+           
+            <div class="container m-4 card card-body shadow-sm" id="loading">
+                <div class="d-flex justify-content-center align-items-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                    <span class="ml-2">cargando</span>
+                </div>
+            </div>
+        <form  @submit.prevent="submitData" method="POST">
+             
+            <div class="alert alert-danger mt-2" v-show="errors.length" role="alert">
+                <b>Por favor, corrija el(los) siguiente(s) error(es):</b>
+                    <ul>
+                        <li v-for="error in errors">{{ error }}</li>
+                    </ul>
+              </div>
+
+            <div class="form-group mt-2">
+                <label for="Monto">Monto</label>
+                <input type="number" id="Monto" v-model="monto" class="form-control" required>
+            </div>
+            
+            <div class="form-group" v-if="monto !=''">
+                <label for="Monto">Moneda origen</label>
+                    <select v-on:change="changeCurrency($event)" class="form-control" required>
+                        <option value="" selected></option>
+                        <option  :value="currency.code" v-for="(currency, key) in currencies" :key="key">{{currency.name}}
+                            ({{currency.code}})
+                        </option>
+                    </select>
+            </div>
+
+            <div class="form-group" v-if="divisa_code != ''">
+                <label for="Monto">Moneda destino</label>
+                    <select v-on:change="changePrice($event)" class="form-control" required>
+                        <option value="" selected></option>
+                        <option  :value="currency.code" v-for="(currency, key) in currencies" :key="key">
+                            {{currency.name}} ({{currency.code}})
+                        </option>
+                    </select>
+            </div>
+
+            <div v-if="monto != ''"><b>Monto: {{monto}} </b></div>
+            <div v-if="divisa_code != ''"><b>Moneda origen seleccionada: ({{divisa_code}}) {{divisa_name}} {{ selected_origin_price}}</b></div>
+            <div v-if="divisa_destino_code != ''"><b>Moneda destino seleccionada: ({{divisa_destino_code}}): {{divisa_destino_name}} {{  selected_destination_price}}</b></div>
+
+            <div class="col text-center" v-if="divisa_destino_code != ''">
+                <button type="submit"  class="btn btn-primary mb-3">Convertir</button> 
+            </div> 
+
+             <div class="card bg-primary text-white text-center mb-2 " v-show="mountConverted != ''">
+                <div class="card-body ">
+                  <h5 class="card-title">Conversion:</h5>
+                  <p class="card-text" >{{monto}} {{divisa_code}} = {{mountConverted}} {{ divisa_destino_code}} </p>
+                </div>
+            </div>
+            <br>
+
+        </form>
+        </div>
+
+        <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab">
+            <div class="row d-flex justify-content-center">
+                <div class="col-10 table-responsive">         
+                    <h3 class="col-10 mb-3 mt-3">Fecha consulta: {{date}}</h3>
+
+                    <div class="form-group mt-2">
+                        <input type="search" v-model="search" class="form-control" placeholder="Buscar divisa">
+                    </div>
+
+                    <table class="table table-bordered text-center">
+                        <thead class="bg-primary text-white">
+                            <tr>
+                                <th scope="col">Nombre</th>
+                                <th scope="col">Abreviatura</th>
+                                <th scope="col">precio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(divisasdate, key) in divisa_dates" :key="key">
+                                <th>{{divisasdate.id}}</th>
+                                <td>{{divisasdate.codedate}}</td>
+                                <td>{{divisasdate.pricedate}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+      </div>  
+</div>
+</body>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    const app = new Vue({
+        el: "#app",
+        data() {
+            return {
+                endpoint: 'https://openexchangerates.org/api/currencies.json?app_id=69faa191e7d94c5a818dc1a41dee5777',
+                priceCurrencies:'https://openexchangerates.org/api/latest.json?app_id=69faa191e7d94c5a818dc1a41dee5777',
+                divisa_code: '',
+                divisa_name: '',
+                divisa_destino_code:'',
+                divisa_destino_name:'',
+                currencies: [],
+                dataprice:[],   
+                monto: '',
+                selected_origin_price:'',
+                selected_destination_price:'',
+                mountConverted:'', 
+                errors:[],
+                date:'',
+                divisa_date:[],
+                divisa_date_name:[],
+                search:'',
+            }
+        },
+
+        mounted() {
+            this.loadCurrencies()
+            this.loadPriceCurrencies()
+            this.record()
+        },      
+
+        methods: {
+
+            async record(){
+                var fecha = new Date(); 
+                var ano = fecha.getFullYear(); 
+                var mes = fecha.getMonth()+1; 
+                var dia = fecha.getDate(); 
+                if(dia<10)
+                    dia='0'+dia; 
+                if(mes<10)
+                    mes='0'+mes 
+                    this.date = ano+'-'+mes+'-'+dia
+
+                    await axios.get(`https://openexchangerates.org/api/historical/${this.date}.json?app_id=69faa191e7d94c5a818dc1a41dee5777&base=USD`)
+                    .then(response => {
+                        Object.values(response.data.rates).forEach((item, index) => {
+                            this.divisa_date.push({
+                                'id': index,
+                                'codedate': Object.keys(response.data.rates)[index],
+                                'pricedate': item,
+                            });
+                        })
+                        this.divisa_date.map(x => {
+                          
+                            this.currencies.map(c => {                            
+                                if(c.code == x.codedate) x.id = c.name
+                            })
+                        })
+
+                    })
+                    .catch(e => console.log(e))
+                    .finally(() => loading.style.display = 'none');
+            },
+
+            submitData(){
+                this.errors = [];
+                    // validar campos
+                    if (isNaN(this.monto) || !this.monto) {
+                    this.errors.push('El monto es obligatorio.');
+                    }
+                     else if(this.monto <= 0){
+                    this.errors.push('El monto no puede ser menor a 1.');
+                     }
+                     else if(!this.divisa_name){
+                        this.errors.push('El campo modena origen es obligatorio.');
+                    }
+                      //validar campo modena origen
+                      else if(!this.divisa_destino_code){
+                        this.errors.push('El campo modena destino es obligatorio.');
+                    }
+                     else {
+                        this.dataprice.map(x=>{
+                        if(x.codeprice == this.divisa_code)
+                        console.log(this.selected_origin_price= x.price)
+                        if(x.codeprice==this.divisa_destino_code)
+                        console.log(this. selected_destination_price= x.price)
+                        })
+                        this.mountConverted = this.monto/this.selected_origin_price*this.selected_destination_price
+                     }
+            },
+            // Cargar currencies
+            async loadCurrencies() {
+                let loading = document.getElementById('loading')
+                loading.style.display = 'flex'
+                await axios.get(this.endpoint)
+                    .then(response => {
+                        Object.values(response.data).forEach((item, index) => {
+                            this.currencies.push({
+                                'id': index,
+                                'code': Object.keys(response.data)[index],
+                                'name': item
+                            }); 
+                        })
+                    })
+                    .catch(e => console.log(e))
+                    .finally(() => loading.style.display = 'none');
+            },
+
+            async  loadPriceCurrencies(){
+                await axios.get(this.priceCurrencies).then(response=>{
+                   Object.values(response.data.rates).forEach((item,index)=>{
+                       this.dataprice.push({
+                            'id':index,
+                            'codeprice':Object.keys(response.data.rates)[index],
+                               'price':item
+                       })
+                   })
+               })
+               .catch(e => console.log(e))
+               .finally(() => loading.style.display = 'none');
+
+            },
+
+            /**
+             * 
+             * Cambiar de currency seleccionada
+             */
+            changeCurrency(event) {
+                this.divisa_code = event.target.value
+                this.currencies.map(x => {
+                    if (x.code == this.divisa_code) this.divisa_name = x.name
+                })
+            },
+            changePrice(event){
+                this.divisa_destino_code = event.target.value
+                this.currencies.map(x => {
+                    if (x.code == this.divisa_destino_code) this.divisa_destino_name = x.name
+                })
+            },  
+        },
+        computed:{
+            divisa_dates:function(){
+                return this.divisa_date.filter(x=>{
+                    return x.codedate.includes(this.search) || x.id.includes(this.search) 
+                    
+                })
+            }
+        }
+    })
+
+</script>
+</html>
